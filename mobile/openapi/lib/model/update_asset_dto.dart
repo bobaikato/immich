@@ -77,11 +77,7 @@ class UpdateAssetDto {
   ///
   Optional<num?> longitude;
 
-  /// Rating in range [1-5], or null for unrated
-  ///
-  /// Minimum value: 1
-  /// Maximum value: 5
-  Optional<int?> rating;
+  Optional<AssetBulkUpdateDtoRating?> rating;
 
   ///
   /// Please note: This property should have been non-nullable! Since the specification file
@@ -169,7 +165,7 @@ class UpdateAssetDto {
         latitude: json.containsKey(r'latitude') ? Optional.present(json[r'latitude'] == null ? null : num.parse('${json[r'latitude']}')) : const Optional.absent(),
         livePhotoVideoId: json.containsKey(r'livePhotoVideoId') ? Optional.present(mapValueOfType<String>(json, r'livePhotoVideoId')) : const Optional.absent(),
         longitude: json.containsKey(r'longitude') ? Optional.present(json[r'longitude'] == null ? null : num.parse('${json[r'longitude']}')) : const Optional.absent(),
-        rating: json.containsKey(r'rating') ? Optional.present(json[r'rating'] == null ? null : int.parse('${json[r'rating']}')) : const Optional.absent(),
+        rating: json.containsKey(r'rating') ? Optional.present(AssetBulkUpdateDtoRating.fromJson(json[r'rating'])) : const Optional.absent(),
         visibility: json.containsKey(r'visibility') ? Optional.present(AssetVisibility.fromJson(json[r'visibility'])) : const Optional.absent(),
       );
     }

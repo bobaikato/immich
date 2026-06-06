@@ -350,6 +350,7 @@ Class | Method | HTTP request | Description
  - [ApiKeyUpdateDto](doc//ApiKeyUpdateDto.md)
  - [AssetBulkDeleteDto](doc//AssetBulkDeleteDto.md)
  - [AssetBulkUpdateDto](doc//AssetBulkUpdateDto.md)
+ - [AssetBulkUpdateDtoRating](doc//AssetBulkUpdateDtoRating.md)
  - [AssetBulkUploadCheckDto](doc//AssetBulkUploadCheckDto.md)
  - [AssetBulkUploadCheckItem](doc//AssetBulkUploadCheckItem.md)
  - [AssetBulkUploadCheckResponseDto](doc//AssetBulkUploadCheckResponseDto.md)

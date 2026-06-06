@@ -14,17 +14,14 @@ const UpdateAssetBaseSchema = z
     latitude: latitudeSchema.optional().describe('Latitude coordinate'),
     longitude: longitudeSchema.optional().describe('Longitude coordinate'),
     rating: z
-      .int()
-      .min(1)
-      .max(5)
+      .union([z.literal(-1), z.number().int().min(1).max(5)])
       .nullish()
-      .describe('Rating in range [1-5], or null for unrated')
+      .describe('Rating in range [1-5], -1 (rejected) or null (unrated)')
       .meta({
         ...new HistoryBuilder()
           .added('v1')
           .stable('v2')
-          .updated('v2.6.0', 'Using -1 as a rating is deprecated and will be removed in the next major version.')
-          .updated('v3', 'Using -1 as a rating is no longer valid.')
+          .updated('v3', 'Using 0 as a rating is no longer valid.')
           .getExtensions(),
       }),
     description: z.string().optional().describe('Asset description'),

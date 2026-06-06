@@ -673,7 +673,7 @@ export type AssetBulkUpdateDto = {
     /** Longitude coordinate */
     longitude?: number;
     /** Rating in range [1-5], or null for unrated */
-    rating?: number | null;
+    rating?: (-1 | number) | null;
     /** Time zone (IANA timezone) */
     timeZone?: string;
     visibility?: AssetVisibility;
@@ -920,7 +920,7 @@ export type UpdateAssetDto = {
     /** Longitude coordinate */
     longitude?: number;
     /** Rating in range [1-5], or null for unrated */
-    rating?: number | null;
+    rating?: (-1 | number) | null;
     visibility?: AssetVisibility;
 };
 export type CropParameters = {

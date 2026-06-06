@@ -90,6 +90,7 @@ part 'model/api_key_response_dto.dart';
 part 'model/api_key_update_dto.dart';
 part 'model/asset_bulk_delete_dto.dart';
 part 'model/asset_bulk_update_dto.dart';
+part 'model/asset_bulk_update_dto_rating.dart';
 part 'model/asset_bulk_upload_check_dto.dart';
 part 'model/asset_bulk_upload_check_item.dart';
 part 'model/asset_bulk_upload_check_response_dto.dart';

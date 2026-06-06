@@ -16503,11 +16503,21 @@
             "type": "number"
           },
           "rating": {
+            "anyOf": [
+              {
+                "type": "number",
+                "enum": [
+                  -1
+                ]
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              }
+            ],
             "description": "Rating in range [1-5], or null for unrated",
-            "maximum": 5,
-            "minimum": 1,
             "nullable": true,
-            "type": "integer",
             "x-immich-history": [
               {
                 "version": "v1",
@@ -16518,14 +16528,9 @@
                 "state": "Stable"
               },
               {
-                "version": "v2.6.0",
-                "state": "Updated",
-                "description": "Using -1 as a rating is deprecated and will be removed in the next major version."
-              },
-              {
                 "version": "v3",
                 "state": "Updated",
-                "description": "Using -1 as a rating is no longer valid."
+                "description": "Using 0 as a rating is no longer valid."
               }
             ],
             "x-immich-state": "Stable"
@@ -26331,11 +26336,21 @@
             "type": "number"
           },
           "rating": {
+            "anyOf": [
+              {
+                "type": "number",
+                "enum": [
+                  -1
+                ]
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              }
+            ],
             "description": "Rating in range [1-5], or null for unrated",
-            "maximum": 5,
-            "minimum": 1,
             "nullable": true,
-            "type": "integer",
             "x-immich-history": [
               {
                 "version": "v1",
@@ -26346,14 +26361,9 @@
                 "state": "Stable"
               },
               {
-                "version": "v2.6.0",
-                "state": "Updated",
-                "description": "Using -1 as a rating is deprecated and will be removed in the next major version."
-              },
-              {
                 "version": "v3",
                 "state": "Updated",
-                "description": "Using -1 as a rating is no longer valid."
+                "description": "Using 0 as a rating is no longer valid."
               }
             ],
             "x-immich-state": "Stable"
