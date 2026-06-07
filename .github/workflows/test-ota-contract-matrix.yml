@@ -201,6 +201,23 @@ jobs:
         shell: bash
         run: ota proof runtime --workflow app --native --ready-timeout 30m .
 
+      - name: Teardown app workflow
+        if: ${{ matrix.app_proof }}
+        timeout-minutes: 30
+        shell: bash
+        run: ota run dev:down --native --stream .
+
+      - name: Assert app teardown is clean
+        if: ${{ matrix.app_proof }}
+        shell: bash
+        run: |
+          running="$(cd docker && docker compose -f ./docker-compose.dev.yml ps --services --status running)"
+          if [ -n "$running" ]; then
+            echo "expected no running dev-stack services after teardown"
+            echo "$running"
+            exit 1
+          fi
+
       - name: Upload artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
