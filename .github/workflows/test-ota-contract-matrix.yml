@@ -45,12 +45,12 @@ jobs:
           - name: ubuntu-full
             os: ubuntu-latest
             full_run: true
-          - name: macos-dry
+          - name: macos-full
             os: macos-latest
-            full_run: false
-          - name: windows-dry
+            full_run: true
+          - name: windows-full
             os: windows-latest
-            full_run: false
+            full_run: true
 
     steps:
       - name: Checkout
