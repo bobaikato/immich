@@ -147,7 +147,9 @@ tasks:
     context: host
     description: Pre-pull the docker-backed local development images before runtime proof or startup
     category: setup
-    run: docker compose -f ./docker-compose.dev.yml pull
+    env:
+      COMPOSE_BAKE: "true"
+    run: cd docker && docker compose -f ./docker-compose.dev.yml pull
     depends_on:
       - setup:env:docker
     requirements:
