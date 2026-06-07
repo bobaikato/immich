@@ -17,6 +17,10 @@ execution:
     app:
       backend: container
       lifecycle: persistent
+      env:
+        MISE_CACHE_DIR: /workspace/.ota/mise/cache
+        MISE_DATA_DIR: /workspace/.ota/mise/data
+        MISE_STATE_DIR: /workspace/.ota/mise/state
       container:
         image: jdxcode/mise:latest
         engines:
