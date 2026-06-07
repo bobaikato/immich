@@ -64,6 +64,11 @@ jobs:
       - name: Install mise
         uses: jdx/mise-action@v2
 
+      - name: Install docker CLI (macOS)
+        if: ${{ matrix.os == 'macos-latest' }}
+        shell: bash
+        run: brew install docker
+
       - name: Install ota from source
         uses: ota-run/ota/.github/actions/install-ota-from-source@v1.6.19
         with:
