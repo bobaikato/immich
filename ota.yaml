@@ -147,9 +147,18 @@ tasks:
     context: host
     description: Pre-pull the registry-backed docker dependencies before runtime proof or startup
     category: setup
+    prepare:
+      kind: dependency_hydration
+      medium: container_images
+      source:
+        kind: docker_compose
+        cwd: docker
+        file: docker-compose.dev.yml
+      targets:
+        - redis
+        - database
     env:
       COMPOSE_BAKE: "true"
-    run: cd docker && docker compose -f ./docker-compose.dev.yml pull redis database
     depends_on:
       - setup:env:docker
     requirements:
@@ -159,7 +168,7 @@ tasks:
       external_state:
         - docker
       network: true
-      network_kind: broad
+      network_kind: dependency_hydration
     notes: |
       The full local dev stack mixes external registry images with local build targets.
       Keeping external image hydration separate from `dev` lets Ota distinguish dependency fetch
