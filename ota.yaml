@@ -143,6 +143,39 @@ tasks:
       This contract keeps that truth directly through `orchestrators.mise` and
       `toolchains.node.fulfillment.source: mise` instead of flattening it into shell glue.
     internal: true
+  setup:docker:images:
+    context: host
+    description: Pre-pull the docker-backed local development images before runtime proof or startup
+    category: setup
+    run: docker compose -f ./docker-compose.dev.yml pull
+    depends_on:
+      - setup:env:docker
+    requirements:
+      tools:
+        docker: "*"
+    effects:
+      external_state:
+        - docker
+      network: true
+      network_kind: broad
+    notes: |
+      The full local dev stack depends on several registry-backed images.
+      Keeping image hydration separate from `dev` lets Ota distinguish dependency fetch time from
+      service readiness time during `ota up --workflow app` and `ota proof runtime --workflow app`.
+  setup:app:
+    context: host
+    description: Prepare the canonical docker-backed local development path before service startup
+    category: setup
+    run: "true"
+    depends_on:
+      - setup
+      - setup:docker:images
+    requirements:
+      toolchains:
+        - node
+      tools:
+        docker: "*"
+    internal: true
   dev:
     context: host
     description: Start the canonical docker-backed local development stack through the repo's mise task surface
@@ -158,7 +191,7 @@ tasks:
           context: host
     depends_on:
       - setup:env:docker
-      - setup
+      - setup:app
     requirements:
       toolchains:
         - node
@@ -282,7 +315,7 @@ workflows:
     prepare:
       task: setup:env:docker
     setup:
-      task: setup
+      task: setup:app
     run:
       task: dev
     readiness:
