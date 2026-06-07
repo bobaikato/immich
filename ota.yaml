@@ -145,11 +145,11 @@ tasks:
     internal: true
   setup:docker:images:
     context: host
-    description: Pre-pull the docker-backed local development images before runtime proof or startup
+    description: Pre-pull the registry-backed docker dependencies before runtime proof or startup
     category: setup
     env:
       COMPOSE_BAKE: "true"
-    run: cd docker && docker compose -f ./docker-compose.dev.yml pull
+    run: cd docker && docker compose -f ./docker-compose.dev.yml pull redis database
     depends_on:
       - setup:env:docker
     requirements:
@@ -161,9 +161,11 @@ tasks:
       network: true
       network_kind: broad
     notes: |
-      The full local dev stack depends on several registry-backed images.
-      Keeping image hydration separate from `dev` lets Ota distinguish dependency fetch time from
-      service readiness time during `ota up --workflow app` and `ota proof runtime --workflow app`.
+      The full local dev stack mixes external registry images with local build targets.
+      Keeping external image hydration separate from `dev` lets Ota distinguish dependency fetch
+      time from service readiness time during `ota up --workflow app` and
+      `ota proof runtime --workflow app` without pretending the locally built app images should be
+      pulled from a registry.
   setup:app:
     context: host
     description: Prepare the canonical docker-backed local development path before service startup
