@@ -110,9 +110,9 @@ jobs:
           ota validate --json . > ota-validate.json
           ota validate .
 
-      - name: Doctor contract
+      - name: Doctor verify workflow
         shell: bash
-        run: ota doctor .
+        run: ota doctor --workflow verify .
 
       - name: List task surfaces
         shell: bash
@@ -268,9 +268,9 @@ jobs:
           ota validate --json . > ota-validate.json
           ota validate .
 
-      - name: Doctor contract (container)
+      - name: Doctor verify workflow (container)
         shell: bash
-        run: ota doctor --mode container .
+        run: ota doctor --mode container --workflow verify .
 
       - name: List task surfaces
         shell: bash
