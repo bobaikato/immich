@@ -1,0 +1,176 @@
+# Copyright (C) 2026 — 2026, Ota. All Rights Reserved.
+# Licensed under the Apache License, Version 2.0. See LICENSE for the full license text.
+
+version: 1
+metadata:
+  ota:
+    minimum_version: "1.6.20"
+project:
+  name: immich
+  description: Immich readiness slice covering repo-native mise orchestration for the server and web checklists across native and isolated container verification; broader docker dev, mobile, machine-learning, and release lanes remain out of scope
+  type: application
+execution:
+  default_context: host
+  contexts:
+    host:
+      backend: native
+    app:
+      backend: container
+      lifecycle: persistent
+      container:
+        image: jdxcode/mise:latest
+        engines:
+          - docker
+          - podman
+      attachments:
+        isolated_paths:
+          - node_modules
+          - .pnpm-store
+toolchains:
+  node:
+    version: "24.15.0"
+    package_managers:
+      pnpm: "10.33.4"
+    fulfillment:
+      source: mise
+      mode: run
+orchestrators:
+  mise:
+    kind: mise
+    required: true
+    config_files:
+      - mise.toml
+    activation:
+      trust: true
+    prepare:
+      install: true
+tasks:
+  setup:
+    context: host
+    description: Trust the repository mise config and install the declared tool set
+    category: setup
+    run: "true"
+    execution:
+      default_mode: native
+      orchestrator:
+        ref: mise
+        mode: exec
+      modes:
+        native:
+          context: host
+        container:
+          context: app
+    requirements:
+      toolchains:
+        - node
+    effects:
+      network: true
+      network_kind: dependency_hydration
+    notes: |
+      The repo's live contributor and CI task surface is driven through `mise.toml`.
+      This contract keeps that truth directly through `orchestrators.mise` and
+      `toolchains.node.fulfillment.source: mise` instead of flattening it into shell glue.
+    internal: true
+  server:verify:
+    context: host
+    description: Run the server CI unit checklist through the repo's mise task surface
+    category: test
+    run: //server:ci-unit
+    execution:
+      default_mode: native
+      orchestrator:
+        ref: mise
+        mode: task
+      modes:
+        native:
+          context: host
+        container:
+          context: app
+    depends_on:
+      - setup
+    requirements:
+      toolchains:
+        - node
+    notes: |
+      This mirrors the upstream `Test` workflow's server lane.
+      It covers install, plugin build, formatting, lint, typecheck, and unit tests for `server/`.
+  web:verify:
+    context: host
+    description: Run the web CI unit checklist through the repo's mise task surface
+    category: test
+    run: //web:ci-unit
+    execution:
+      default_mode: native
+      orchestrator:
+        ref: mise
+        mode: task
+      modes:
+        native:
+          context: host
+        container:
+          context: app
+    depends_on:
+      - setup
+    requirements:
+      toolchains:
+        - node
+    notes: |
+      This mirrors the upstream `Test` workflow's web lane.
+      It covers SDK prep plus the web unit checklist for `web/`.
+  verify:
+    context: host
+    description: Aggregate the proven native mise verification slice for server and web
+    category: test
+    run: "true"
+    execution:
+      default_mode: native
+      modes:
+        native:
+          context: host
+        container:
+          context: app
+    depends_on:
+      - server:verify
+      - web:verify
+    requirements:
+      toolchains:
+        - node
+    notes: |
+      Contract-level verification path for the selected native or isolated-container checklist slice.
+      It intentionally does not claim the broader docker dev stack, mobile, machine-learning, or release workflows yet.
+workflows:
+  default: verify
+  verify:
+    description: Canonical native or container verification path for the selected server and web checklist slice
+    setup:
+      task: setup
+    run:
+      task: verify
+    notes: |
+      Use `ota up --workflow verify` for the native contributor path, or `ota up --workflow verify --container`
+      when you want the same mise-driven checklist slice without relying on host Node parity.
+agent:
+  posture: readiness_strict
+  entrypoint: setup
+  default_task: verify
+  verify_after_changes:
+    - verify
+  writable_paths:
+    - server
+    - web
+    - packages
+    - docs
+    - i18n
+    - docker
+  protected_paths:
+    - .github/workflows
+    - mise.toml
+    - pnpm-lock.yaml
+    - ota.yaml
+  notes: |
+    Use `ota doctor` first to inspect host readiness for the selected native mise checklist slice.
+    Use `ota up --workflow verify` for the declared server and web verification path.
+    Use `ota up --workflow verify --container` when you want the same checklist slice through an isolated container lane.
+    This pressure branch depends on unreleased Ota contract surfaces until `1.6.20` ships, so keep
+    source-install proof in the matrix instead of teaching released bootstrap commands yet.
+    Use `ota tasks --use` last to inspect the rest of the declared task surface.
