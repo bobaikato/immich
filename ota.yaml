@@ -7,7 +7,7 @@ metadata:
     minimum_version: "1.6.20"
 project:
   name: immich
-  description: Immich readiness slice covering repo-native mise orchestration for the server and web checklists across native and isolated container verification; broader docker dev, mobile, machine-learning, and release lanes remain out of scope
+  description: Immich readiness contract covering the repo-native mise verification slice plus the canonical docker-backed local development stack through `mise dev`
   type: application
 execution:
   default_context: host
@@ -48,7 +48,75 @@ orchestrators:
       trust: true
     prepare:
       install: true
+surfaces:
+  site:
+    kind: http
+    label: Immich Web
+    purpose: Primary browser-facing Immich application surface
+    visibility: public
+    port: 3000
+    path: /
+    readiness:
+      kind: http
+      path: /
+      success:
+        status: [200]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 20s
+  api:
+    kind: http
+    label: Immich API
+    purpose: Canonical Immich API surface exposed by the dev stack
+    visibility: internal
+    port: 2283
+    path: /api
+    readiness:
+      kind: http
+      path: /api/server/ping
+      success:
+        status: [200]
+      body:
+        contains: '"res":"pong"'
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 20s
+  machine-learning:
+    kind: http
+    label: Immich Machine Learning
+    purpose: Machine-learning inference surface used by the local dev stack
+    visibility: internal
+    port: 3003
+    path: /
+    readiness:
+      kind: http
+      path: /ping
+      success:
+        status: [200]
+      body:
+        contains: "pong"
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 20s
 tasks:
+  setup:env:docker:
+    context: host
+    description: Materialize the docker dev env file when the repo has not created one yet
+    category: setup
+    action:
+      kind: copy_if_missing
+      from: docker/example.env
+      to: docker/.env
+    effects:
+      writes:
+        - docker/.env
+    notes: |
+      The repo's local dev stack expects `docker/.env`.
+      The checked-in example already carries workable local defaults, so Ota should materialize it
+      instead of pushing that burden back into README prose.
   setup:
     context: host
     description: Trust the repository mise config and install the declared tool set
@@ -75,6 +143,69 @@ tasks:
       This contract keeps that truth directly through `orchestrators.mise` and
       `toolchains.node.fulfillment.source: mise` instead of flattening it into shell glue.
     internal: true
+  dev:
+    context: host
+    description: Start the canonical docker-backed local development stack through the repo's mise task surface
+    category: dev
+    run: //:dev
+    execution:
+      default_mode: native
+      orchestrator:
+        ref: mise
+        mode: task
+      modes:
+        native:
+          context: host
+    depends_on:
+      - setup:env:docker
+      - setup
+    requirements:
+      toolchains:
+        - node
+      tools:
+        docker: "*"
+    effects:
+      external_state:
+        - docker
+      network: true
+      network_kind: broad
+    runtime:
+      kind: service
+      surfaces:
+        site:
+          project:
+            host:
+              primary: true
+        api: {}
+        machine-learning: {}
+    notes: |
+      This is the repo's real contributor front door now that `make dev` delegates to `mise dev`.
+      It starts the full local stack through `docker/docker-compose.dev.yml`, including the web,
+      API, database, redis, and machine-learning services.
+  dev:down:
+    context: host
+    description: Tear down the canonical local development stack through the repo's mise task surface
+    category: cleanup
+    run: //:dev-down
+    execution:
+      default_mode: native
+      orchestrator:
+        ref: mise
+        mode: task
+      modes:
+        native:
+          context: host
+    depends_on:
+      - setup:env:docker
+    requirements:
+      tools:
+        docker: "*"
+    effects:
+      external_state:
+        - docker
+    notes: |
+      Use this when a prior dev run left compose state behind or when you want explicit teardown
+      outside the `mise dev` interactive lifecycle.
   server:verify:
     context: host
     description: Run the server CI unit checklist through the repo's mise task surface
@@ -141,9 +272,32 @@ tasks:
         - node
     notes: |
       Contract-level verification path for the selected native or isolated-container checklist slice.
-      It intentionally does not claim the broader docker dev stack, mobile, machine-learning, or release workflows yet.
+      It intentionally stays narrower than the full local dev stack so contributors and agents can
+      choose between checklist proof and the real app front door.
 workflows:
-  default: verify
+  default: app
+  app:
+    intent: local_development
+    description: Canonical docker-backed Immich development workflow through the repo's mise task surface
+    prepare:
+      task: setup:env:docker
+    setup:
+      task: setup
+    run:
+      task: dev
+    readiness:
+      surfaces:
+        - site
+        - api
+        - machine-learning
+    exposes:
+      - surface: site
+      - surface: api
+      - surface: machine-learning
+    notes: |
+      Use `ota up --workflow app` or `ota proof runtime --workflow app` when you want the real
+      contributor path: env materialization, mise trust/install, and the docker-backed local stack
+      started through `mise dev`.
   verify:
     description: Canonical native or container verification path for the selected server and web checklist slice
     setup:
@@ -172,8 +326,13 @@ agent:
     - pnpm-lock.yaml
     - ota.yaml
   notes: |
-    Use `ota doctor` first to inspect host readiness for the selected native mise checklist slice.
-    Use `ota up --workflow verify` for the declared server and web verification path.
+    Use `ota doctor` first to inspect host readiness for either the full local dev stack or the
+    narrower verification slice.
+    Use `ota up --workflow app` for the repo's canonical docker-backed contributor path through
+    `mise dev`.
+    Use `ota proof runtime --workflow app` when you want clean-machine proof that the local stack
+    really becomes ready.
+    Use `ota up --workflow verify` for the narrower server and web verification path.
     Use `ota up --workflow verify --container` when you want the same checklist slice through an isolated container lane.
     This pressure branch depends on unreleased Ota contract surfaces until `1.6.20` ships, so keep
     source-install proof in the matrix instead of teaching released bootstrap commands yet.

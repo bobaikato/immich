@@ -45,12 +45,15 @@ jobs:
           - name: ubuntu-full
             os: ubuntu-latest
             full_run: true
+            app_proof: true
           - name: macos-full
             os: macos-latest
             full_run: true
+            app_proof: false
           - name: windows-full
             os: windows-latest
             full_run: true
+            app_proof: false
 
     steps:
       - name: Checkout
@@ -127,6 +130,8 @@ jobs:
         run: |
           ota tasks --workflow verify --json . > ota-tasks-verify.json
           cat ota-tasks-verify.json
+          ota tasks --workflow app --json . > ota-tasks-app.json
+          cat ota-tasks-app.json
 
       - name: Export execution topology
         shell: bash
@@ -160,17 +165,36 @@ jobs:
           }
           JS
 
-      - name: Execute verify task (Ubuntu)
+      - name: Dry-run app workflow
+        shell: bash
+        run: |
+          ota up --workflow app --native --dry-run --json . > ota-up-app.json
+          node - <<'JS'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('ota-up-app.json', 'utf8'));
+          if (!report.dry_run || report.status === 'BLOCKED') {
+            console.error(JSON.stringify(report, null, 2));
+            process.exit(1);
+          }
+          JS
+
+      - name: Execute verify task
         if: ${{ matrix.full_run }}
         timeout-minutes: 120
         shell: bash
         run: ota run verify --native --stream .
 
-      - name: Execute verify workflow (Ubuntu)
+      - name: Execute verify workflow
         if: ${{ matrix.full_run }}
         timeout-minutes: 120
         shell: bash
         run: ota up --workflow verify --native --stream .
+
+      - name: Proof app workflow runtime
+        if: ${{ matrix.app_proof }}
+        timeout-minutes: 150
+        shell: bash
+        run: ota proof runtime --workflow app --native --ready-timeout 30m .
 
       - name: Upload artifacts on failure
         if: failure()
@@ -181,8 +205,11 @@ jobs:
             ota-validate.json
             ota-execution-topology.json
             ota-tasks-verify.json
+            ota-tasks-app.json
             ota-up-verify.json
             ota-run-verify.json
+            ota-up-app.json
+            .ota/proof/app
 
   container:
     name: Ota Contract Matrix (ubuntu-container)
