@@ -101,6 +101,40 @@ surfaces:
       timeout: 3s
       retries: 60
       start_period: 20s
+  e2e-site:
+    kind: http
+    label: Immich E2E Web
+    purpose: Browser-facing web surface for the repo's dedicated e2e dev stack
+    visibility: internal
+    port: 2285
+    path: /
+    readiness:
+      kind: http
+      path: /
+      success:
+        status: [200]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 20s
+  e2e-api:
+    kind: http
+    label: Immich E2E API
+    purpose: API surface for the repo's dedicated e2e dev stack
+    visibility: internal
+    port: 2285
+    path: /api
+    readiness:
+      kind: http
+      path: /api/server/ping
+      success:
+        status: [200]
+      body:
+        contains: '"res":"pong"'
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 20s
 tasks:
   setup:env:docker:
     context: host
@@ -176,35 +210,35 @@ tasks:
       `ota proof runtime --workflow app` without pretending the locally built app images should be
       pulled from a registry.
   setup:app:
-    context: host
     description: Prepare the canonical docker-backed local development path before service startup
     category: setup
-    run: "true"
-    depends_on:
-      - setup
-      - setup:docker:images
-    requirements:
-      toolchains:
-        - node
-      tools:
-        docker: "*"
+    aggregate:
+      tasks:
+        - setup
+        - setup:docker:images
+    internal: true
+  setup:e2e:
+    description: Prepare the docker-backed e2e development path before service startup
+    category: setup
+    aggregate:
+      tasks:
+        - setup
+        - setup:docker:images
     internal: true
   dev:
     context: host
     description: Start the canonical docker-backed local development stack through the repo's mise task surface
     category: dev
-    run: //:dev
-    execution:
-      default_mode: native
-      orchestrator:
-        ref: mise
-        mode: task
-      modes:
-        native:
-          context: host
+    launch:
+      kind: command
+      exe: mise
+      args:
+        - run
+        - dev
     depends_on:
       - setup:env:docker
-      - setup:app
+      - setup
+      - setup:docker:images
     requirements:
       toolchains:
         - node
@@ -226,8 +260,8 @@ tasks:
         machine-learning: {}
     notes: |
       This is the repo's real contributor front door now that `make dev` delegates to `mise dev`.
-      It starts the full local stack through `docker/docker-compose.dev.yml`, including the web,
-      API, database, redis, and machine-learning services.
+      Ota models it as a long-running service launch through `mise run dev` so runtime proof and
+      surfaced readiness stay first-class without flattening the repo's real task front door.
   dev:down:
     context: host
     description: Tear down the canonical local development stack through the repo's mise task surface
@@ -252,6 +286,66 @@ tasks:
     notes: |
       Use this when a prior dev run left compose state behind or when you want explicit teardown
       outside the `mise dev` interactive lifecycle.
+  e2e:dev:
+    context: host
+    description: Start the dedicated e2e dev stack through the repo's mise task surface
+    category: dev
+    launch:
+      kind: command
+      exe: mise
+      args:
+        - run
+        - e2e-dev
+    depends_on:
+      - setup:env:docker
+      - setup
+      - setup:docker:images
+    requirements:
+      toolchains:
+        - node
+      tools:
+        docker: "*"
+    effects:
+      external_state:
+        - docker
+      network: true
+      network_kind: broad
+    runtime:
+      kind: service
+      surfaces:
+        e2e-site:
+          project:
+            host:
+              primary: true
+        e2e-api: {}
+    notes: |
+      This covers the repo's dedicated `mise e2e-dev` stack rooted under `e2e/docker-compose.dev.yml`.
+      Ota models it as a long-running service launch through `mise run e2e-dev` so runtime proof
+      stays first-class while the repo keeps `mise` as the real contributor front door.
+  e2e:dev-down:
+    context: host
+    description: Tear down the dedicated e2e dev stack through the repo's mise task surface
+    category: cleanup
+    run: //:e2e-dev-down
+    execution:
+      default_mode: native
+      orchestrator:
+        ref: mise
+        mode: task
+      modes:
+        native:
+          context: host
+    depends_on:
+      - setup:env:docker
+    requirements:
+      tools:
+        docker: "*"
+    effects:
+      external_state:
+        - docker
+    notes: |
+      Use this when a prior e2e stack run left compose state behind or when you want explicit teardown
+      outside the `mise e2e-dev` interactive lifecycle.
   server:verify:
     context: host
     description: Run the server CI unit checklist through the repo's mise task surface
@@ -299,23 +393,12 @@ tasks:
       This mirrors the upstream `Test` workflow's web lane.
       It covers SDK prep plus the web unit checklist for `web/`.
   verify:
-    context: host
     description: Aggregate the proven native mise verification slice for server and web
     category: test
-    run: "true"
-    execution:
-      default_mode: native
-      modes:
-        native:
-          context: host
-        container:
-          context: app
-    depends_on:
-      - server:verify
-      - web:verify
-    requirements:
-      toolchains:
-        - node
+    aggregate:
+      tasks:
+        - server:verify
+        - web:verify
     notes: |
       Contract-level verification path for the selected native or isolated-container checklist slice.
       It intentionally stays narrower than the full local dev stack so contributors and agents can
@@ -344,6 +427,25 @@ workflows:
       Use `ota up --workflow app` or `ota proof runtime --workflow app` when you want the real
       contributor path: env materialization, mise trust/install, and the docker-backed local stack
       started through `mise dev`.
+  e2e:
+    intent: local_development
+    description: Dedicated docker-backed e2e development workflow through the repo's mise task surface
+    prepare:
+      task: setup:env:docker
+    setup:
+      task: setup:e2e
+    run:
+      task: e2e:dev
+    readiness:
+      surfaces:
+        - e2e-site
+        - e2e-api
+    exposes:
+      - surface: e2e-site
+      - surface: e2e-api
+    notes: |
+      Use `ota up --workflow e2e` or `ota proof runtime --workflow e2e` when you want the repo's
+      dedicated browser-level test stack through `mise e2e-dev` instead of the default local dev path.
   verify:
     description: Canonical native or container verification path for the selected server and web checklist slice
     setup:
@@ -378,6 +480,8 @@ agent:
     `mise dev`.
     Use `ota proof runtime --workflow app` when you want clean-machine proof that the local stack
     really becomes ready.
+    Use `ota proof runtime --workflow e2e` when you want the dedicated e2e dev stack proved as a
+    first-class Ota workflow instead of treating it as repo-local tribal knowledge.
     Use `ota up --workflow verify` for the narrower server and web verification path.
     Use `ota up --workflow verify --container` when you want the same checklist slice through an isolated container lane.
     This pressure branch depends on unreleased Ota contract surfaces until `1.6.20` ships, so keep

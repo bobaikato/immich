@@ -46,14 +46,17 @@ jobs:
             os: ubuntu-latest
             full_run: true
             app_proof: true
+            e2e_proof: true
           - name: macos-full
             os: macos-latest
             full_run: true
             app_proof: false
+            e2e_proof: false
           - name: windows-full
             os: windows-latest
             full_run: true
             app_proof: false
+            e2e_proof: false
 
     steps:
       - name: Checkout
@@ -137,6 +140,8 @@ jobs:
           cat ota-tasks-verify.json
           ota tasks --workflow app --json . > ota-tasks-app.json
           cat ota-tasks-app.json
+          ota tasks --workflow e2e --json . > ota-tasks-e2e.json
+          cat ota-tasks-e2e.json
 
       - name: Export execution topology
         shell: bash
@@ -183,6 +188,19 @@ jobs:
           }
           JS
 
+      - name: Dry-run e2e workflow
+        shell: bash
+        run: |
+          ota up --workflow e2e --native --dry-run --json . > ota-up-e2e.json
+          node - <<'JS'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('ota-up-e2e.json', 'utf8'));
+          if (!report.dry_run || report.status === 'BLOCKED') {
+            console.error(JSON.stringify(report, null, 2));
+            process.exit(1);
+          }
+          JS
+
       - name: Execute verify task
         if: ${{ matrix.full_run }}
         timeout-minutes: 120
@@ -201,6 +219,12 @@ jobs:
         shell: bash
         run: ota proof runtime --workflow app --native --ready-timeout 30m .
 
+      - name: Proof e2e workflow runtime
+        if: ${{ matrix.e2e_proof }}
+        timeout-minutes: 150
+        shell: bash
+        run: ota proof runtime --workflow e2e --native --ready-timeout 30m .
+
       - name: Teardown app workflow
         if: ${{ matrix.app_proof }}
         timeout-minutes: 30
@@ -218,6 +242,23 @@ jobs:
             exit 1
           fi
 
+      - name: Teardown e2e workflow
+        if: ${{ matrix.e2e_proof }}
+        timeout-minutes: 30
+        shell: bash
+        run: ota run e2e:dev-down --native --stream .
+
+      - name: Assert e2e teardown is clean
+        if: ${{ matrix.e2e_proof }}
+        shell: bash
+        run: |
+          running="$(cd e2e && docker compose -f ./docker-compose.dev.yml ps --services --status running)"
+          if [ -n "$running" ]; then
+            echo "expected no running e2e services after teardown"
+            echo "$running"
+            exit 1
+          fi
+
       - name: Upload artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -228,10 +269,13 @@ jobs:
             ota-execution-topology.json
             ota-tasks-verify.json
             ota-tasks-app.json
+            ota-tasks-e2e.json
             ota-up-verify.json
             ota-run-verify.json
             ota-up-app.json
+            ota-up-e2e.json
             .ota/proof/app
+            .ota/proof/e2e
 
   container:
     name: Ota Contract Matrix (ubuntu-container)
