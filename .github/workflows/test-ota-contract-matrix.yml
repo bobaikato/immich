@@ -6,14 +6,10 @@ name: "Test: Ota contract matrix"
 on:
   workflow_dispatch:
     inputs:
-      ota_repository:
-        description: Ota source repository to build for this matrix run
+      ota_version:
+        description: Released Ota version to install for this matrix run
         required: false
-        default: bobaikato/ota
-      ota_ref:
-        description: Ota branch, tag, or commit to build for this matrix run
-        required: false
-        default: 1.6.20-implementation
+        default: v1.6.20
   pull_request:
     paths:
       - "ota.yaml"
@@ -32,6 +28,7 @@ permissions:
 
 env:
   OTA_NO_UPDATE_CHECK: "1"
+  OTA_VERSION: ${{ github.event.inputs.ota_version || 'v1.6.20' }}
 
 jobs:
   native:
@@ -72,11 +69,20 @@ jobs:
         shell: bash
         run: brew install docker
 
-      - name: Install ota from source
-        uses: ota-run/ota/.github/actions/install-ota-from-source@v1.6.19
-        with:
-          repository: ${{ github.event.inputs.ota_repository || 'bobaikato/ota' }}
-          ref: ${{ github.event.inputs.ota_ref || '1.6.20-implementation' }}
+      - name: Install ota (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          curl -fsSL https://dist.ota.run/install.sh | OTA_VERSION="${OTA_VERSION}" sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install ota (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:OTA_VERSION = "${env:OTA_VERSION}"
+          irm https://dist.ota.run/install.ps1 | iex
+          (Join-Path $HOME ".local\\bin") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Assert ota minimum version from contract
         shell: bash
@@ -288,11 +294,20 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install ota from source
-        uses: ota-run/ota/.github/actions/install-ota-from-source@v1.6.19
-        with:
-          repository: ${{ github.event.inputs.ota_repository || 'bobaikato/ota' }}
-          ref: ${{ github.event.inputs.ota_ref || '1.6.20-implementation' }}
+      - name: Install ota (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          curl -fsSL https://dist.ota.run/install.sh | OTA_VERSION="${OTA_VERSION}" sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install ota (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:OTA_VERSION = "${env:OTA_VERSION}"
+          irm https://dist.ota.run/install.ps1 | iex
+          (Join-Path $HOME ".local\\bin") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Assert ota minimum version from contract
         shell: bash

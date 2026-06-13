@@ -484,6 +484,6 @@ agent:
     first-class Ota workflow instead of treating it as repo-local tribal knowledge.
     Use `ota up --workflow verify` for the narrower server and web verification path.
     Use `ota up --workflow verify --container` when you want the same checklist slice through an isolated container lane.
-    This pressure branch depends on unreleased Ota contract surfaces until `1.6.20` ships, so keep
-    source-install proof in the matrix instead of teaching released bootstrap commands yet.
+    This pressure branch depends on Ota `1.6.20` contract surfaces, so keep the matrix pinned to
+    released `1.6.20` or newer instead of falling back to source-install proof.
     Use `ota tasks --use` last to inspect the rest of the declared task surface.
