@@ -1,0 +1,108 @@
+#                 █████
+#                ░░███
+#        ██████  ███████    ██████
+#       ███░░███░░░███░    ░░░░░███
+#      ░███ ░███  ░███      ███████
+#      ░███ ░███  ░███ ███ ███░░███
+#      ░░██████   ░░█████ ░░████████
+#       ░░░░░░     ░░░░░   ░░░░░░░░
+#
+#    Copyright (C) 2026 — 2026, Ota. All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with that License.
+#    Unless required by applicable law or agreed to in writing, software distributed under the
+#    License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+#    either express or implied. See the License for the specific language governing permissions
+#    and limitations under the License.
+
+name: "Test: Ota contract matrix"
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - bobai/immich-runtime-digest-pressure
+
+concurrency:
+  group: ota-contract-matrix-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  OTA_NO_UPDATE_CHECK: "1"
+
+jobs:
+  contract:
+    name: Ota Contract Matrix (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu
+            os: ubuntu-latest
+            compose_runtime: true
+          - name: macos
+            os: macos-latest
+            compose_runtime: false
+          - name: windows
+            os: windows-latest
+            compose_runtime: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Ota from contract truth
+        uses: ota-run/setup@v1.0.8
+        with:
+          source: contract
+          contract-path: ota.yaml
+
+      - name: Validate contract
+        shell: bash
+        run: |
+          ota validate --json . > ota-validate.json
+          ota validate .
+
+      - name: Discover human and agent task surfaces
+        shell: bash
+        run: |
+          ota tasks --use .
+          ota tasks --safe --use .
+
+      - name: Dry-run public task and workflow surfaces
+        shell: bash
+        run: |
+          ota run infra:status --agent --dry-run --json .
+          ota run infra:up --dry-run --json .
+          ota run infra:stop --dry-run --json .
+          ota up --workflow infrastructure --dry-run --json .
+
+      - name: Prove Docker Compose runtime and receipt evidence
+        if: ${{ matrix.compose_runtime }}
+        shell: bash
+        run: |
+          ota doctor --workflow infrastructure --json . > ota-doctor.json
+          ota doctor --workflow infrastructure .
+          ota run infra:setup-env --stream .
+          ota run infra:up --stream .
+          ota run infra:status --agent --stream .
+          ota receipt --json --archive --workflow infrastructure . > ota-receipt.json
+          ota receipt --json --baseline latest --workflow infrastructure . > ota-receipt-diff.json
+          ota run infra:stop --stream .
+
+      - name: Upload Ota artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ota-contract-matrix-${{ matrix.name }}
+          path: |
+            ota-validate.json
+            ota-doctor.json
+            ota-receipt.json
+            ota-receipt-diff.json
