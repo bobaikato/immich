@@ -84,6 +84,7 @@ tasks:
       writes:
         - docker/postgres
       network: true
+      network_kind: container_image_hydration
   infra:stop:
     description: Stop the narrow infrastructure lane without deleting its persistent data
     adapter_inputs:
