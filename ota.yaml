@@ -1,0 +1,111 @@
+#
+#                █████
+#               ░░███
+#       ██████  ███████    ██████
+#      ███░░███░░░███░    ░░░░░███
+#     ░███ ░███  ░███      ███████
+#     ░███ ░███  ░███ ███ ███░░███
+#     ░░██████   ░░█████ ░░████████
+#      ░░░░░░     ░░░░░   ░░░░░░░░
+#
+#   Copyright (C) 2026 — 2026, Ota. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+version: 1
+project:
+  name: immich-compose-runtime-digest-pressure
+  description: Narrow Compose infrastructure proof for receipt-authored immutable runtime image identity
+  type: application
+agent:
+  bootstrap:
+    ota:
+      note: Only install ota if it is missing and installation is approved.
+      source:
+        kind: branch
+        branch: 1.6.24-implementation
+  safe_tasks:
+    - infra:status
+tasks:
+  infra:setup-env:
+    description: Create the documented local Compose environment file without overwriting operator values
+    action:
+      kind: copy_if_missing
+      from: docker/example.env
+      to: docker/.env
+    effects:
+      writes:
+        - docker/.env
+  infra:status:
+    description: Inspect the selected digest-pinned infrastructure services without mutation
+    safe_for_agent: true
+    adapter_inputs:
+      overlays:
+        compose:
+          cwd: docker
+          files:
+            - docker-compose.yml
+    compose:
+      kind: ps
+      services:
+        - redis
+        - database
+    requirements:
+      tools:
+        docker: "*"
+  infra:up:
+    description: Start only the digest-pinned Redis and PostgreSQL infrastructure services
+    adapter_inputs:
+      overlays:
+        compose:
+          cwd: docker
+          files:
+            - docker-compose.yml
+    compose:
+      kind: up
+      detach: true
+      services:
+        - redis
+        - database
+    requirements:
+      tools:
+        docker: "*"
+    effects:
+      writes:
+        - docker/postgres
+      network: true
+  infra:stop:
+    description: Stop the narrow infrastructure lane without deleting its persistent data
+    adapter_inputs:
+      overlays:
+        compose:
+          cwd: docker
+          files:
+            - docker-compose.yml
+    compose:
+      kind: stop
+      services:
+        - redis
+        - database
+    requirements:
+      tools:
+        docker: "*"
+workflows:
+  default: infrastructure
+  infrastructure:
+    intent: local_development
+    description: Start the narrow local infrastructure lane without claiming the mutable Immich application images
+    prepare:
+      task: infra:setup-env
+    run:
+      task: infra:up

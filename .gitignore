@@ -1,5 +1,11 @@
 **/node_modules/**
 
+# Ota local execution artifacts
+.ota/state/*
+.ota/contracts/*
+.ota/receipts/*
+.ota/proof/*
+
 .DS_Store
 .vscode/*
 !.vscode/launch.json
@@ -8,6 +14,7 @@
 
 docker/upload
 docker/library
+docker/postgres/
 uploads
 coverage
 
