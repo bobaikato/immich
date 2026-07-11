@@ -76,6 +76,7 @@ jobs:
           ota tasks --safe --use .
 
       - name: Dry-run public task and workflow surfaces
+        if: ${{ matrix.compose_runtime }}
         shell: bash
         run: |
           ota run infra:status --agent --dry-run --json .
